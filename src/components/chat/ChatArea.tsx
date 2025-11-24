@@ -5,12 +5,12 @@ import { io } from 'socket.io-client';
 
 interface ChatAreaProps {
     activeChat?: Chat;
+    onMessageSent?: (chatId: string, message: any) => void;
 }
 
-// Initialize socket outside component to avoid multiple connections
 const socket = io('http://localhost:3000');
 
-const ChatArea: React.FC<ChatAreaProps> = ({ activeChat }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ activeChat, onMessageSent }) => {
     if (!activeChat) {
         return (
             <div className="h-full flex flex-col items-center justify-center bg-whatsapp-header-bg border-b-8 border-whatsapp-teal">
@@ -30,17 +30,23 @@ const ChatArea: React.FC<ChatAreaProps> = ({ activeChat }) => {
     const handleSendMessage = (text: string) => {
         if (!activeChat) return;
 
-        // Extract phone number from chat ID (assuming chat ID is the phone number for now)
-        // In a real app, the Chat object would have a specific 'jid' or 'phoneNumber' field
         const to = activeChat.id;
-
         socket.emit('send_message', { to, text });
         console.log(`Sent message to ${to}: ${text}`);
+
+        if (onMessageSent) {
+            const newMessage = {
+                id: Date.now().toString(),
+                text,
+                sender: 'me',
+                timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            };
+            onMessageSent(activeChat.id, newMessage);
+        }
     };
 
     return (
         <div className="h-full flex flex-col bg-whatsapp-chat-bg">
-            {/* Header */}
             <div className="h-16 bg-whatsapp-header-bg flex items-center justify-between px-4 border-b border-gray-200 flex-none">
                 <div className="flex items-center cursor-pointer">
                     <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
@@ -48,7 +54,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ activeChat }) => {
                     </div>
                     <div>
                         <h3 className="text-gray-900 font-normal">{activeChat.name}</h3>
-                        <span className="text-xs text-gray-500">visto por último hoje às 10:30</span>
+                        <span className="text-xs text-gray-500">online</span>
                     </div>
                 </div>
                 <div className="flex gap-6 text-gray-600">
@@ -57,7 +63,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ activeChat }) => {
                 </div>
             </div>
 
-            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-8 bg-chat-pattern space-y-2">
                 {activeChat.messages.map((msg) => (
                     <div
@@ -65,8 +70,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ activeChat }) => {
                         className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}
                     >
                         <div
-                            className={`max-w-[60%] rounded-lg px-3 py-1.5 shadow-sm text-sm relative ${msg.sender === 'me' ? 'bg-whatsapp-message-out' : 'bg-whatsapp-message-in'
-                                }`}
+                            className={`max-w-[60%] rounded-lg px-3 py-1.5 shadow-sm text-sm relative ${msg.sender === 'me' ? 'bg-whatsapp-message-out' : 'bg-whatsapp-message-in'}`}
                         >
                             <span className="text-gray-900">{msg.text}</span>
                             <span className="text-[10px] text-gray-500 ml-2 float-right mt-2">
@@ -77,7 +81,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ activeChat }) => {
                 ))}
             </div>
 
-            {/* Input Area */}
             <div className="h-16 bg-whatsapp-header-bg px-4 flex items-center gap-4 flex-none">
                 <button className="text-gray-500"><Smile size={24} /></button>
                 <button className="text-gray-500"><Paperclip size={24} /></button>

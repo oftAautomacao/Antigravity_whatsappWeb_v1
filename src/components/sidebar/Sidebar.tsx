@@ -9,6 +9,24 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ chats, onSelectChat, activeChatId }) => {
+    const [showMenu, setShowMenu] = React.useState(false);
+
+    const handleDisconnect = async () => {
+        if (confirm('Deseja realmente desconectar do WhatsApp? Você precisará escanear o QR Code novamente.')) {
+            try {
+                const response = await fetch('http://localhost:3000/logout', { method: 'POST' });
+                if (response.ok) {
+                    alert('Desconectado! Recarregue a página para escanear novamente.');
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Erro ao desconectar:', error);
+                alert('Erro ao desconectar. Tente novamente.');
+            }
+        }
+        setShowMenu(false);
+    };
+
     return (
         <div className="h-full flex flex-col bg-white">
             {/* Header */}
@@ -16,10 +34,24 @@ const Sidebar: React.FC<SidebarProps> = ({ chats, onSelectChat, activeChatId }) 
                 <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden">
                     <img src="https://ui-avatars.com/api/?name=User+Admin&background=00a884&color=fff" alt="Profile" />
                 </div>
-                <div className="flex gap-6 text-gray-600">
+                <div className="flex gap-6 text-gray-600 relative">
                     <button title="Status"><Donut size={20} /></button>
                     <button title="Nova Conversa"><MessageSquare size={20} /></button>
-                    <button title="Menu"><MoreVertical size={20} /></button>
+                    <button title="Menu" onClick={() => setShowMenu(!showMenu)}>
+                        <MoreVertical size={20} />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {showMenu && (
+                        <div className="absolute right-0 top-8 bg-white shadow-lg rounded-lg py-2 w-48 z-50 border border-gray-200">
+                            <button
+                                onClick={handleDisconnect}
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+                            >
+                                Desconectar WhatsApp
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -1,22 +1,20 @@
 import makeWASocket, { DisconnectReason, useMultiFileAuthState, ConnectionState } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { Server } from 'socket.io';
-import * as fs from 'fs';
 
 export const connectToWhatsApp = async (io: Server) => {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
     const sock = makeWASocket({
-        printQRInTerminal: true, // Útil para debug no terminal também
+        printQRInTerminal: true,
         auth: state,
     });
 
-    sock.ev.on('connection.update', (update: Partial<ConnectionState>) => {
+    sock.ev.on('connection.update', async (update: Partial<ConnectionState>) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
             console.log('QR Code received');
-            // Envia o QR Code para o frontend via Socket.io
             io.emit('qr_code', qr);
         }
 
@@ -45,11 +43,18 @@ export const connectToWhatsApp = async (io: Server) => {
     });
 
     sock.ev.on('messages.upsert', async (m) => {
-        // console.log(JSON.stringify(m, undefined, 2));
-        // Aqui enviaremos as mensagens para o frontend/banco de dados
+        console.log('=== MESSAGE UPSERT ===');
+        console.log('Type:', m.type);
+        console.log('Messages count:', m.messages.length);
+
         if (m.type === 'notify') {
             for (const msg of m.messages) {
+                console.log('Message from:', msg.key.remoteJid);
+                console.log('From me:', msg.key.fromMe);
+                console.log('Message:', msg.message);
+
                 if (!msg.key.fromMe) {
+                    console.log('Emitting new_message to frontend');
                     io.emit('new_message', msg);
                 }
             }
@@ -59,7 +64,6 @@ export const connectToWhatsApp = async (io: Server) => {
     io.on('connection', (socket) => {
         socket.on('send_message', async (data: { to: string; text: string }) => {
             try {
-                // Adiciona o sufixo do WhatsApp se não tiver (apenas números brasileiros por enquanto como exemplo)
                 const id = data.to.includes('@s.whatsapp.net') ? data.to : `${data.to}@s.whatsapp.net`;
                 await sock.sendMessage(id, { text: data.text });
                 console.log(`Message sent to ${id}: ${data.text}`);

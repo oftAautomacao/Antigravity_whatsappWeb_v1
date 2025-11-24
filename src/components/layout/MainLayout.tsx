@@ -50,25 +50,81 @@ const MainLayout: React.FC = () => {
       });
     });
 
+    socket.on('new_message', (msg: any) => {
+      console.log('New message received:', msg);
+
+      const remoteJid = msg.key.remoteJid;
+      const senderName = msg.pushName || msg.verifiedBizName || remoteJid.split('@')[0];
+      const messageText = msg.message?.conversation ||
+        msg.message?.extendedTextMessage?.text ||
+        'Mídia';
+
+      const newMessage = {
+        id: msg.key.id || Date.now().toString(),
+        text: messageText,
+        sender: msg.key.fromMe ? 'me' : 'other',
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setChats(prevChats => {
+        const existingChatIndex = prevChats.findIndex(c => c.id === remoteJid);
+
+        if (existingChatIndex >= 0) {
+          const updatedChats = [...prevChats];
+          updatedChats[existingChatIndex] = {
+            ...updatedChats[existingChatIndex],
+            lastMessage: messageText,
+            lastMessageTime: newMessage.timestamp,
+            unreadCount: updatedChats[existingChatIndex].unreadCount + 1,
+            messages: [...updatedChats[existingChatIndex].messages, newMessage]
+          };
+          return updatedChats;
+        } else {
+          const newChat: Chat = {
+            id: remoteJid,
+            name: senderName,
+            avatar: `https://ui-avatars.com/api/?background=random&name=${encodeURIComponent(senderName)}`,
+            lastMessage: messageText,
+            lastMessageTime: newMessage.timestamp,
+            unreadCount: 1,
+            messages: [newMessage]
+          };
+          return [newChat, ...prevChats];
+        }
+      });
+    });
+
     return () => {
       socket.disconnect();
     };
   }, []);
 
+  const handleMessageSent = (chatId: string, message: any) => {
+    setChats(prevChats => {
+      const chatIndex = prevChats.findIndex(c => c.id === chatId);
+      if (chatIndex >= 0) {
+        const updatedChats = [...prevChats];
+        updatedChats[chatIndex] = {
+          ...updatedChats[chatIndex],
+          messages: [...updatedChats[chatIndex].messages, message],
+          lastMessage: message.text,
+          lastMessageTime: message.timestamp
+        };
+        return updatedChats;
+      }
+      return prevChats;
+    });
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-whatsapp-background">
       <div className="w-full max-w-[1600px] mx-auto h-full flex shadow-lg">
-        {/* Instance Switcher (Temporarily Disabled for Single Instance Focus) */}
-        {/* <InstanceSwitcher /> */}
-
-        {/* Conditional Rendering based on Connection */}
         {!isConnected && qrCode ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <QRCodeDisplay qrCode={qrCode} />
           </div>
         ) : (
           <>
-            {/* Sidebar Area */}
             <div className="w-[400px] flex-none bg-whatsapp-sidebar-bg border-r border-gray-200">
               <Sidebar
                 chats={chats.length > 0 ? chats : mockChats}
@@ -77,9 +133,8 @@ const MainLayout: React.FC = () => {
               />
             </div>
 
-            {/* Chat Area */}
             <div className="flex-1 bg-whatsapp-chat-bg relative">
-              <ChatArea activeChat={activeChat} />
+              <ChatArea activeChat={activeChat} onMessageSent={handleMessageSent} />
             </div>
           </>
         )}
