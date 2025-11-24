@@ -1,9 +1,9 @@
 export interface Message {
     id: string;
     text: string;
-    sender: 'me' | 'them';
+    sender: 'me' | 'other';
     timestamp: string;
-    status: 'sent' | 'delivered' | 'read';
+    status?: 'sent' | 'delivered' | 'read';
 }
 
 export interface Chat {
@@ -25,8 +25,8 @@ export const mockChats: Chat[] = [
         lastMessageTime: '10:30',
         unreadCount: 2,
         messages: [
-            { id: 'm1', text: 'Bom dia!', sender: 'them', timestamp: '10:28', status: 'read' },
-            { id: 'm2', text: 'Olá, gostaria de marcar uma consulta.', sender: 'them', timestamp: '10:30', status: 'read' },
+            { id: 'm1', text: 'Bom dia!', sender: 'other', timestamp: '10:28', status: 'read' },
+            { id: 'm2', text: 'Olá, gostaria de marcar uma consulta.', sender: 'other', timestamp: '10:30', status: 'read' },
         ]
     },
     {
@@ -38,7 +38,7 @@ export const mockChats: Chat[] = [
         unreadCount: 0,
         messages: [
             { id: 'm3', text: 'Seu exame ficou pronto.', sender: 'me', timestamp: '14:00', status: 'read' },
-            { id: 'm4', text: 'Obrigada pelo atendimento!', sender: 'them', timestamp: '14:05', status: 'read' },
+            { id: 'm4', text: 'Obrigada pelo atendimento!', sender: 'other', timestamp: '14:05', status: 'read' },
         ]
     },
     {
@@ -49,7 +49,7 @@ export const mockChats: Chat[] = [
         lastMessageTime: 'Ontem',
         unreadCount: 0,
         messages: [
-            { id: 'm5', text: 'Reunião às 15h?', sender: 'them', timestamp: '09:00', status: 'read' },
+            { id: 'm5', text: 'Reunião às 15h?', sender: 'other', timestamp: '09:00', status: 'read' },
         ]
     },
     {
@@ -60,7 +60,7 @@ export const mockChats: Chat[] = [
         lastMessageTime: 'Terça',
         unreadCount: 5,
         messages: [
-            { id: 'm6', text: 'Novo protocolo de atendimento.', sender: 'them', timestamp: '11:00', status: 'read' },
+            { id: 'm6', text: 'Novo protocolo de atendimento.', sender: 'other', timestamp: '11:00', status: 'read' },
         ]
     }
 ];

@@ -8,6 +8,10 @@ export const connectToWhatsApp = async (io: Server) => {
     const sock = makeWASocket({
         printQRInTerminal: true,
         auth: state,
+        defaultQueryTimeoutMs: undefined, // Keep connection alive
+        keepAliveIntervalMs: 10000,
+        syncFullHistory: false, // Disable full history sync to avoid timeouts
+        generateHighQualityLinkPreview: true,
     });
 
     sock.ev.on('connection.update', async (update: Partial<ConnectionState>) => {
@@ -27,6 +31,20 @@ export const connectToWhatsApp = async (io: Server) => {
         } else if (connection === 'open') {
             console.log('Opened connection');
             io.emit('connection_status', 'open');
+
+            // Buscar chats existentes
+            try {
+                console.log('Fetching existing chats...');
+                const chats = await sock.groupFetchAllParticipating();
+                const chatList = Object.values(chats);
+
+                if (chatList.length > 0) {
+                    console.log(`Found ${chatList.length} chats`);
+                    io.emit('chats_update', chatList);
+                }
+            } catch (error) {
+                console.error('Error fetching chats:', error);
+            }
         }
     });
 
@@ -47,26 +65,44 @@ export const connectToWhatsApp = async (io: Server) => {
         console.log('Type:', m.type);
         console.log('Messages count:', m.messages.length);
 
-        if (m.type === 'notify') {
-            for (const msg of m.messages) {
-                console.log('Message from:', msg.key.remoteJid);
-                console.log('From me:', msg.key.fromMe);
-                console.log('Message:', msg.message);
+        for (const msg of m.messages) {
+            // Ignorar mensagens de status/broadcast
+            if (msg.key.remoteJid === 'status@broadcast') continue;
 
-                if (!msg.key.fromMe) {
-                    console.log('Emitting new_message to frontend');
-                    io.emit('new_message', msg);
-                }
-            }
+            console.log('Message from:', msg.key.remoteJid);
+            console.log('From me:', msg.key.fromMe);
+
+            // Emitir todas as mensagens (incluindo as suas)
+            io.emit('new_message', msg);
         }
     });
 
     io.on('connection', (socket) => {
         socket.on('send_message', async (data: { to: string; text: string }) => {
             try {
-                const id = data.to.includes('@s.whatsapp.net') ? data.to : `${data.to}@s.whatsapp.net`;
-                await sock.sendMessage(id, { text: data.text });
-                console.log(`Message sent to ${id}: ${data.text}`);
+                // Formatar JID corretamente
+                let id = data.to;
+                if (!id.includes('@s.whatsapp.net')) {
+                    // Remover caracteres não numéricos
+                    id = id.replace(/\D/g, '');
+                    id = `${id}@s.whatsapp.net`;
+                }
+
+                console.log(`Attempting to send message to ${id}: ${data.text}`);
+
+                // Verificar se o socket está aberto
+                // @ts-ignore
+                if (sock.ws.readyState !== sock.ws.OPEN) {
+                    console.error('WhatsApp socket is not open');
+                    return;
+                }
+
+                const sentMsg = await sock.sendMessage(id, { text: data.text });
+                console.log(`Message sent successfully to ${id}`);
+
+                // Emitir de volta para o frontend confirmar (opcional, mas bom para debug)
+                // io.emit('message_sent', { to: id, text: data.text, id: sentMsg?.key.id });
+
             } catch (error) {
                 console.error('Error sending message:', error);
             }

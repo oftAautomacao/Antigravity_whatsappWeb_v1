@@ -7,9 +7,20 @@ import { io } from 'socket.io-client';
 
 const MainLayout: React.FC = () => {
   const [activeChat, setActiveChat] = useState<Chat | undefined>(undefined);
-  const [chats, setChats] = useState<Chat[]>([]);
+  const [chats, setChats] = useState<Chat[]>(() => {
+    // Carregar chats do LocalStorage ao iniciar
+    const savedChats = localStorage.getItem('whatsapp_chats');
+    return savedChats ? JSON.parse(savedChats) : [];
+  });
   const [qrCode, setQrCode] = useState<string>('');
   const [isConnected, setIsConnected] = useState<boolean>(false);
+
+  // Salvar chats no LocalStorage sempre que mudarem
+  useEffect(() => {
+    if (chats.length > 0) {
+      localStorage.setItem('whatsapp_chats', JSON.stringify(chats));
+    }
+  }, [chats]);
 
   useEffect(() => {
     const socket = io('http://localhost:3000');
@@ -62,7 +73,7 @@ const MainLayout: React.FC = () => {
       const newMessage = {
         id: msg.key.id || Date.now().toString(),
         text: messageText,
-        sender: msg.key.fromMe ? 'me' : 'other',
+        sender: (msg.key.fromMe ? 'me' : 'other') as 'me' | 'other',
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       };
 
@@ -115,6 +126,16 @@ const MainLayout: React.FC = () => {
       return prevChats;
     });
   };
+
+  // Atualizar activeChat quando os chats mudarem
+  useEffect(() => {
+    if (activeChat) {
+      const updatedChat = chats.find(c => c.id === activeChat.id);
+      if (updatedChat) {
+        setActiveChat(updatedChat);
+      }
+    }
+  }, [chats]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-whatsapp-background">

@@ -38,7 +38,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ activeChat, onMessageSent }) => {
             const newMessage = {
                 id: Date.now().toString(),
                 text,
-                sender: 'me',
+                sender: 'me' as 'me' | 'other',
                 timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             };
             onMessageSent(activeChat.id, newMessage);
